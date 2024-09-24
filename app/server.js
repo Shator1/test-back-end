@@ -1,67 +1,39 @@
-import express from 'express';
-import multer from 'multer';
-import path from 'path';
-import cors from 'cors';
-import puppeteer from 'puppeteer'; // Puppeteer for headless rendering
+import puppeteer from 'puppeteer';
 import fs from 'fs-extra';
-import { fileURLToPath } from 'url';
 
-// Set up Express app
-const app = express();
-
-// Enable CORS for your frontend
-app.use(cors({
-  origin: '*'  // Adjust this to restrict access to specific origins
-}));
-
-// Set up __dirname in ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Set up storage for file uploads (for custom Minecraft skins)
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname));
+// This function will ensure Chromium is installed properly
+const ensureChromiumInstalled = async () => {
+  try {
+    console.log('Checking Chromium installation...');
+    await puppeteer.executablePath();
+  } catch (error) {
+    console.log('Chromium not found. Installing...');
+    await puppeteer.install();
   }
-});
-const upload = multer({ storage });
-
-// Handle file uploads and return the file URL
-app.post('/upload', upload.single('skin'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).send('No file uploaded');
-  }
-  const fileUrl = `/uploads/${req.file.filename}`;
-  res.json({ url: fileUrl });
-});
-
-// Serve the uploaded files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+};
 
 // Render skin and overlay with Puppeteer and Skinview3D
 const renderSkin3D = async (skinUrl, overlayUrl) => {
+  await ensureChromiumInstalled();  // Ensure Chromium is installed
+
   const browser = await puppeteer.launch({
     headless: true,  // Render without showing the browser
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
-      '--enable-webgl',  // Enable WebGL for rendering
+      '--enable-webgl',
       '--ignore-gpu-blacklist',
       '--disable-software-rasterizer',
-      '--use-gl=egl'  // Ensure WebGL is working in Puppeteer
+      '--use-gl=egl'
     ]
   });
 
   const page = await browser.newPage();
-
+  
   // Log browser console errors for debugging
   page.on('console', msg => console.log('PAGE LOG:', msg.text()));
   page.on('pageerror', err => console.error('PAGE ERROR:', err.message));
 
-  // HTML for Puppeteer page
   const htmlContent = `
     <!DOCTYPE html>
     <html lang="en">
@@ -118,27 +90,3 @@ const renderSkin3D = async (skinUrl, overlayUrl) => {
   await browser.close();
   return screenshotBuffer;
 };
-
-// API endpoint to render the skin
-app.get('/render-skin/:overlayId', async (req, res) => {
-  const overlayId = req.params.overlayId;
-  const username = req.query.username || 'iiShator';
-  
-  const skinUrl = `https://mc-heads.net/skin/${username}`;
-  const overlayPath = path.join(__dirname, 'overlays', `${overlayId}.png`);
-
-  try {
-    const renderedImage = await renderSkin3D(skinUrl, overlayPath);
-    res.setHeader('Content-Type', 'image/png');
-    res.send(renderedImage);
-  } catch (error) {
-    console.error('Rendering error:', error);
-    res.status(500).send('Error rendering skin');
-  }
-});
-
-// Start the server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
