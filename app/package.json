@@ -1,0 +1,27 @@
+{
+  "name": "webgl-puppeteer-render",
+  "version": "0.1.0",
+  "description": "A Node.js app using Puppeteer and Skinview3D for WebGL rendering.",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "canvas": "^2.11.2",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "fs-extra": "^11.2.0",
+    "multer": "^1.4.5-lts.1",
+    "puppeteer": "^23.4.0",
+    "skinview3d": "^3.1.0"
+  },
+  "engines": {
+    "node": "14.x"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "license": "MIT"
+}
